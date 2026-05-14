@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>UAE Explorer WebGL MVP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="app" class="app" aria-label="UAE Explorer interactive map">
+      <canvas id="scene" class="legacy-scene" aria-label="Fallback 3D UAE terrain view"></canvas>
+      <div id="stars" class="stars"></div>
+
+      <section class="panel stats-panel">
+        <div class="corner corner-tr"></div>
+        <h1>UAE Explorer</h1>
+        <p class="tagline">Discover. Explore. Experience.</p>
+        <h2>Location Stats</h2>
+        <div id="statsList" class="stats-list"></div>
+        <p class="updated"><span>Last updated:</span> May 15, 2024</p>
+      </section>
+
+      <div class="compass" aria-label="Compass heading tape">
+        <div id="compassTape" class="compass-tape"></div>
+        <div id="compassHeading" class="compass-heading">N</div>
+      </div>
+
+      <div class="top-actions" aria-label="Map actions">
+        <button id="searchToggle" class="icon-button" type="button" title="Search locations" aria-label="Search locations">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path></svg>
+        </button>
+        <button id="focusButton" class="icon-button" type="button" title="Focus selected category" aria-label="Focus selected category">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7Z"></path><path d="M18 19v2"></path><path d="M21 16v5"></path></svg>
+        </button>
+        <button id="fullscreenButton" class="icon-button" type="button" title="Go fullscreen" aria-label="Go fullscreen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5"></path><path d="M16 3h5v5"></path><path d="M8 21H3v-5"></path><path d="M16 21h5v-5"></path></svg>
+        </button>
+      </div>
+
+      <form id="searchPanel" class="panel search-panel hidden" role="search">
+        <label for="searchInput">Search UAE attractions</label>
+        <div class="search-row">
+          <input id="searchInput" type="search" placeholder="Try Hatta, museum, park..." autocomplete="off" />
+          <button type="submit">Go</button>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+      </form>
+
+      <section class="panel categories-panel">
+        <div class="corner corner-tr"></div>
+        <div class="panel-heading">
+          <h2>Explore Categories</h2>
+          <button id="viewAllCategories" class="text-action" type="button">View All</button>
+        </div>
+        <div id="categoryList" class="category-list"></div>
+      </section>
+
+      <section class="panel selected-panel closed" aria-hidden="true">
+        <div class="corner corner-tr"></div>
+        <h2>Selected Location</h2>
+        <div class="selected-image">
+          <div id="selectedBadge" class="selected-badge"></div>
+          <div class="sun"></div>
+        </div>
+        <h3 id="selectedTitle"></h3>
+        <p id="selectedPlace" class="place"></p>
+        <p id="selectedDescription"></p>
+        <button id="detailsButton" class="details-button" type="button">
+          View Details
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </button>
+      </section>
+
+      <section class="panel weather-panel" id="weatherPanel">
+        <h2>Weather Overview</h2>
+        <div id="weatherLoader" class="weather-loader">
+          <span id="weatherLoaderText">Select location for current weather</span>
+          <div class="loading-dots" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
+        </div>
+        <p id="weatherLocation" class="weather-location">Select a location</p>
+        <div class="weather-now">
+          <div id="weatherIcon" class="weather-sun" aria-hidden="true"></div>
+          <div>
+            <strong id="weatherTemp">-- degC</strong>
+            <span id="weatherSummary">Waiting</span>
+          </div>
+          <dl>
+            <div><dt>Humidity</dt><dd id="weatherHumidity">--</dd></div>
+            <div><dt>Wind</dt><dd id="weatherWind">--</dd></div>
+            <div><dt>Visibility</dt><dd id="weatherVisibility">--</dd></div>
+          </dl>
+        </div>
+        <p id="weatherUpdated" class="weather-updated">Live weather loads when you click a location.</p>
+        <div id="forecast" class="forecast">
+          <div><span>--</span><b>--</b></div>
+          <div><span>--</span><b>--</b></div>
+          <div><span>--</span><b>--</b></div>
+          <div><span>--</span><b>--</b></div>
+          <div><span>--</span><b>--</b></div>
+        </div>
+      </section>
+
+      <section class="panel help-panel" aria-label="Map controls">
+        <div class="keys">
+          <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>
+        </div>
+        <span>Move</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8V6a4 4 0 0 1 8 0v2"></path><rect x="6" y="8" width="12" height="13" rx="6"></rect><path d="M12 8v5"></path></svg>
+        <span>Rotate</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="5"></rect><path d="M12 7v4"></path></svg>
+        <span>Zoom</span>
+      </section>
+
+      <section class="view-switcher" aria-label="View modes">
+        <button class="view-button active" data-view="3d" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z"></path><path d="M12 12 4 7.5"></path><path d="m12 12 8-4.5"></path><path d="M12 12v9"></path></svg>
+          <span>3D</span>
+        </button>
+        <button class="view-button" data-view="satellite" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M4 12h16"></path><path d="M12 4c3 3 3 13 0 16"></path><path d="M12 4c-3 3-3 13 0 16"></path></svg>
+          <span>Satellite</span>
+        </button>
+      </section>
+
+      <div id="markerLayer" class="marker-layer" aria-label="Clickable location markers"></div>
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
