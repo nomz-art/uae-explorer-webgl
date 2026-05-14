@@ -14,6 +14,10 @@ const searchToggle = document.getElementById("searchToggle");
 const searchPanel = document.getElementById("searchPanel");
 const searchInput = document.getElementById("searchInput");
 const searchResults = document.getElementById("searchResults");
+const filterPanel = document.getElementById("filterPanel");
+const filterCategoryList = document.getElementById("filterCategoryList");
+const filterCityList = document.getElementById("filterCityList");
+const mapLoadingOverlay = document.getElementById("mapLoadingOverlay");
 const fullscreenButton = document.getElementById("fullscreenButton");
 const focusButton = document.getElementById("focusButton");
 const detailsButton = document.getElementById("detailsButton");
@@ -200,6 +204,8 @@ const locations = [
   ...Object.entries(categoryDirectories).flatMap(([category, items]) => items.map((item) => ({ ...item, category })))
 ];
 
+const cityFilters = ["Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Umm Al-Quwain", "Ras Al-Khaimah", "Fujairah"];
+
 const emirateLabels = [
   { name: "Abu Dhabi", x: -0.32, z: -0.2 },
   { name: "Dubai", x: 0.21, z: 0.18 },
@@ -230,6 +236,8 @@ let activeView = "3d";
 let selectedCategory = "camp";
 let selectedLocation = null;
 let enabledCategories = new Set(categories.map((category) => category.id));
+let activeCityFilter = null;
+let mapIsLoading = true;
 let expandedCategory = null;
 let yaw = Math.PI;
 let pitch = 0.92;
@@ -405,6 +413,35 @@ function categoryFor(id) {
   return categories.find((category) => category.id === id);
 }
 
+function cityForLocation(location) {
+  const text = `${location.place || ""} ${location.name || ""}`.toLowerCase();
+  const rules = [
+    ["Umm Al-Quwain", /umm al[\s-]?quwain|uaq/],
+    ["Ras Al-Khaimah", /ras al[\s-]?khaimah|jebel jais|rak/],
+    ["Abu Dhabi", /abu dhabi|al ain|liwa|dhafra|yas|saadiyat|sir bani yas|mirfa|sila|khaznah|wathba/],
+    ["Dubai", /dubai|hatta|jumeirah|qudra|mamzar|mushrif|zabeel|safa|palm|burj/],
+    ["Sharjah", /sharjah|khorfakkan|kalba|mleiha|dhaid|shees|fossil/],
+    ["Ajman", /ajman|zorah/],
+    ["Fujairah", /fujairah|aqah|snoopy|wadi sana/]
+  ];
+  const match = rules.find(([, pattern]) => pattern.test(text));
+  return match ? match[0] : "Abu Dhabi";
+}
+
+function visibleLocations() {
+  return locations.filter((location) => (
+    enabledCategories.has(location.category)
+    && (!activeCityFilter || cityForLocation(location) === activeCityFilter)
+  ));
+}
+
+function setMapLoading(loading) {
+  mapIsLoading = loading;
+  document.body.classList.toggle("map-loading", loading);
+  mapLoadingOverlay.classList.toggle("hidden", !loading);
+  markerLayer.classList.toggle("hidden", loading);
+}
+
 function renderStats() {
   const total = categories.reduce((sum, category) => sum + category.count, 0);
   const rows = [{ label: "Total Attractions", count: total, color: "#00d7ff", icon: iconPaths.other }, ...categories.map((category) => ({ label: category.id === "other" ? "Other" : category.short, count: category.count, color: category.color, icon: category.icon }))];
@@ -447,6 +484,26 @@ function renderCategories() {
   }).join("");
 }
 
+function renderFilterPanel() {
+  filterCategoryList.innerHTML = [
+    `<button class="filter-option${enabledCategories.size === categories.length ? " active" : ""}" data-filter-category="all" type="button">All Categories</button>`,
+    ...categories.map((category) => `
+      <button class="filter-option${enabledCategories.size === 1 && enabledCategories.has(category.id) ? " active" : ""}" data-filter-category="${category.id}" type="button">
+        ${category.label}
+      </button>
+    `)
+  ].join("");
+
+  filterCityList.innerHTML = [
+    `<button class="filter-option${!activeCityFilter ? " active" : ""}" data-filter-city="all" type="button">All Cities</button>`,
+    ...cityFilters.map((city) => `
+      <button class="filter-option${activeCityFilter === city ? " active" : ""}" data-filter-city="${city}" type="button">
+        ${city}
+      </button>
+    `)
+  ].join("");
+}
+
 function renderSelected() {
   if (!selectedLocation) return;
   const category = categoryFor(selectedLocation.category);
@@ -458,8 +515,7 @@ function renderSelected() {
 }
 
 function renderMarkers() {
-  const visibleLocations = locations.filter((location) => enabledCategories.has(location.category));
-  const markerHtml = visibleLocations.map((location) => {
+  const markerHtml = visibleLocations().map((location) => {
     const category = categoryFor(location.category);
     const selected = location.id === selectedLocation?.id ? " selected" : "";
     return `<button class="marker${selected}" style="--accent:${category.color}" data-location="${location.id}" type="button" title="${location.name}" aria-label="${location.name}">${svg(category.icon)}</button>`;
@@ -496,7 +552,9 @@ function selectLocation(locationId) {
   selectedLocation = location;
   selectedCategory = location.category;
   if (!enabledCategories.has(location.category)) enabledCategories.add(location.category);
+  if (activeCityFilter && cityForLocation(location) !== activeCityFilter) activeCityFilter = null;
   renderCategories();
+  renderFilterPanel();
   renderSelected();
   renderMarkers();
   showSelectedPanel();
@@ -694,9 +752,11 @@ function updateCompass() {
 }
 
 function initUI() {
+  setMapLoading(true);
   initCompass();
   renderStats();
   renderCategories();
+  renderFilterPanel();
   renderMarkers();
   resetWeatherIdle();
 
@@ -710,29 +770,18 @@ function initUI() {
     const button = event.target.closest("[data-category]");
     if (!button) return;
     const categoryId = button.dataset.category;
-    const clickedChevron = event.target.closest(".chevron");
-    if (clickedChevron) {
-      expandedCategory = expandedCategory === categoryId ? null : categoryId;
-      selectedCategory = categoryId;
-      renderCategories();
-      showToast(expandedCategory === categoryId ? `${categoryFor(categoryId).label} list opened` : `${categoryFor(categoryId).label} list closed`);
-      return;
-    }
+    expandedCategory = expandedCategory === categoryId ? null : categoryId;
     selectedCategory = categoryId;
-    enabledCategories = new Set([categoryId]);
-    if (selectedLocation && !enabledCategories.has(selectedLocation.category)) {
-      selectedLocation = null;
-      closeSelectedPanel();
-      resetWeatherIdle();
-    }
     renderCategories();
-    renderMarkers();
-    showToast(`${categoryFor(categoryId).label} isolated`);
+    renderFilterPanel();
+    showToast(expandedCategory === categoryId ? `${categoryFor(categoryId).label} list opened` : `${categoryFor(categoryId).label} list closed`);
   });
 
   viewAllCategories.addEventListener("click", () => {
     enabledCategories = new Set(categories.map((category) => category.id));
+    activeCityFilter = null;
     renderCategories();
+    renderFilterPanel();
     renderMarkers();
     showToast("All categories visible");
   });
@@ -774,6 +823,7 @@ function initUI() {
 
   searchToggle.addEventListener("click", () => {
     searchPanel.classList.toggle("hidden");
+    filterPanel.classList.add("hidden");
     if (!searchPanel.classList.contains("hidden")) searchInput.focus();
   });
 
@@ -803,10 +853,51 @@ function initUI() {
   });
 
   focusButton.addEventListener("click", () => {
-    enabledCategories = new Set([selectedCategory]);
-    renderCategories();
-    renderMarkers();
-    showToast(`Focused on ${categoryFor(selectedCategory).label}`);
+    filterPanel.classList.toggle("hidden");
+    searchPanel.classList.add("hidden");
+  });
+
+  filterPanel.addEventListener("click", (event) => {
+    const clearButton = event.target.closest("[data-filter-clear]");
+    if (clearButton) {
+      enabledCategories = new Set(categories.map((category) => category.id));
+      activeCityFilter = null;
+      selectedCategory = "camp";
+      renderCategories();
+      renderFilterPanel();
+      renderMarkers();
+      showToast("All locations visible");
+      return;
+    }
+
+    const categoryButton = event.target.closest("[data-filter-category]");
+    if (categoryButton) {
+      const categoryId = categoryButton.dataset.filterCategory;
+      enabledCategories = categoryId === "all" ? new Set(categories.map((category) => category.id)) : new Set([categoryId]);
+      selectedCategory = categoryId === "all" ? "camp" : categoryId;
+      if (selectedLocation && !enabledCategories.has(selectedLocation.category)) closeSelectedPanel(true);
+      renderCategories();
+      renderFilterPanel();
+      renderMarkers();
+      showToast(categoryId === "all" ? "All categories visible" : `${categoryFor(categoryId).label} isolated`);
+      return;
+    }
+
+    const cityButton = event.target.closest("[data-filter-city]");
+    if (cityButton) {
+      activeCityFilter = cityButton.dataset.filterCity === "all" ? null : cityButton.dataset.filterCity;
+      if (selectedLocation && activeCityFilter && cityForLocation(selectedLocation) !== activeCityFilter) closeSelectedPanel(true);
+      renderFilterPanel();
+      renderMarkers();
+      showToast(activeCityFilter ? `${activeCityFilter} locations visible` : "All cities visible");
+    }
+  });
+
+  document.addEventListener("pointerdown", (event) => {
+    const clickedSearch = searchPanel.contains(event.target) || searchToggle.contains(event.target);
+    const clickedFilter = filterPanel.contains(event.target) || focusButton.contains(event.target);
+    if (!clickedSearch) searchPanel.classList.add("hidden");
+    if (!clickedFilter) filterPanel.classList.add("hidden");
   });
 
   detailsButton.addEventListener("click", () => {
@@ -833,6 +924,7 @@ function runSearch() {
 function initWebGL() {
   gl = canvas.getContext("webgl", { antialias: true, alpha: true });
   if (!gl) {
+    setMapLoading(false);
     showToast("WebGL is not available in this browser.");
     return false;
   }
@@ -981,9 +1073,11 @@ async function loadGeoBoundary(url) {
     mesh = buildTerrainMesh();
     uploadTerrainMesh();
     renderMarkers();
+    setMapLoading(false);
     showToast("Accurate UAE boundary map loaded");
   } catch (error) {
     console.warn(error);
+    setMapLoading(false);
     showToast("Using fallback terrain. Run the local server to load accurate map data.");
   }
 }
@@ -1025,6 +1119,7 @@ async function loadGlbModel(url) {
     loadGlbTextures(parsed).catch((textureError) => console.warn("GLB textures could not be loaded", textureError));
     renderMarkers();
     updateMarkerPositions();
+    setMapLoading(false);
     showToast("High-detail UAE GLB model loaded");
     return true;
   } catch (error) {
@@ -1478,6 +1573,10 @@ function draw() {
     : scale(zoom, 1, zoom);
   mvpMatrix = multiply(projection, multiply(view, model));
 
+  if (mapIsLoading && !glbModel && !geoBoundary) {
+    return;
+  }
+
   if (glbModel) {
     drawGlbModel();
   } else {
@@ -1632,6 +1731,8 @@ function initInput() {
   }, { passive: false });
 
   window.addEventListener("keydown", (event) => {
+    const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(event.target?.tagName) || event.target?.isContentEditable;
+    if (typing && event.key !== "Escape") return;
     if (activeView === "3d") {
       const key = event.key.toLowerCase();
       const panStep = 0.045;
@@ -1642,6 +1743,7 @@ function initInput() {
     }
     if (event.key === "Escape") {
       searchPanel.classList.add("hidden");
+      filterPanel.classList.add("hidden");
       closeSelectedPanel(true);
     }
   });

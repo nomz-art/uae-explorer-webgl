@@ -29,7 +29,7 @@
         <button id="searchToggle" class="icon-button" type="button" title="Search locations" aria-label="Search locations">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M15.5 15.5 21 21"></path></svg>
         </button>
-        <button id="focusButton" class="icon-button" type="button" title="Focus selected category" aria-label="Focus selected category">
+        <button id="focusButton" class="icon-button" type="button" title="Filter map" aria-label="Filter map">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7v5l-4 2v-7Z"></path><path d="M18 19v2"></path><path d="M21 16v5"></path></svg>
         </button>
         <button id="fullscreenButton" class="icon-button" type="button" title="Go fullscreen" aria-label="Go fullscreen">
@@ -45,6 +45,15 @@
         </div>
         <div id="searchResults" class="search-results"></div>
       </form>
+
+      <section id="filterPanel" class="panel filter-panel hidden" aria-label="Filter map">
+        <h2>Filter Map</h2>
+        <button class="filter-option wide" data-filter-clear="all" type="button">View All Locations</button>
+        <h3>Category Types</h3>
+        <div id="filterCategoryList" class="filter-stack"></div>
+        <h3>Cities</h3>
+        <div id="filterCityList" class="filter-stack"></div>
+      </section>
 
       <section class="panel categories-panel">
         <div class="corner corner-tr"></div>
@@ -127,6 +136,16 @@
       </section>
 
       <div id="markerLayer" class="marker-layer" aria-label="Clickable location markers"></div>
+      <div id="mapLoadingOverlay" class="map-loading-overlay" role="status" aria-live="polite">
+        <div class="map-loading-box">
+          <span>Loading 3D Map</span>
+          <div class="map-loading-dots" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
+        </div>
+      </div>
       <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </main>
 

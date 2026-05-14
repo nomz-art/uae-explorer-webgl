@@ -99,6 +99,10 @@ input {
   cursor: grabbing;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .stars {
   pointer-events: none;
   opacity: 0.34;
@@ -111,6 +115,66 @@ input {
     radial-gradient(circle at 55% 50%, rgba(0, 215, 255, 0.18), transparent 38%);
   background-size: 54px 54px, 54px 54px, 160px 130px, 190px 160px, 100% 100%;
   mask-image: radial-gradient(circle at 52% 46%, black 0 52%, transparent 78%);
+}
+
+.map-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(0, 215, 255, 0.14), transparent 24%),
+    radial-gradient(circle at 50% 48%, transparent 0 18%, rgba(0, 215, 255, 0.12) 18.15% 18.45%, transparent 18.7% 30%, rgba(0, 215, 255, 0.08) 30.15% 30.45%, transparent 30.7%);
+}
+
+.map-loading-box {
+  min-width: 260px;
+  border: 1px solid rgba(0, 215, 255, 0.45);
+  padding: 22px 28px;
+  background: rgba(2, 12, 24, 0.86);
+  color: var(--cyan-bright);
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 900;
+  box-shadow: 0 0 30px rgba(0, 215, 255, 0.2), inset 0 0 22px rgba(0, 215, 255, 0.08);
+}
+
+.map-loading-dots {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.map-loading-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 14px var(--cyan);
+  animation: map-loading-pulse 900ms infinite ease-in-out;
+}
+
+.map-loading-dots i:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.map-loading-dots i:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+@keyframes map-loading-pulse {
+  0%, 100% {
+    opacity: 0.35;
+    transform: translateY(0) scale(0.86);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1);
+  }
 }
 
 .panel {
@@ -464,10 +528,6 @@ h2 {
   padding: 16px;
 }
 
-.search-panel.hidden {
-  display: none;
-}
-
 .search-panel label {
   display: block;
   margin-bottom: 10px;
@@ -516,6 +576,59 @@ h2 {
   color: var(--text);
   cursor: pointer;
   text-align: left;
+}
+
+.filter-panel {
+  top: 102px;
+  right: 108px;
+  width: 292px;
+  z-index: 10;
+  padding: 18px;
+}
+
+.filter-panel h2 {
+  margin-bottom: 12px;
+}
+
+.filter-panel h3 {
+  margin: 14px 0 8px;
+  color: var(--cyan-bright);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.filter-stack {
+  display: grid;
+  gap: 7px;
+}
+
+.filter-option {
+  width: 100%;
+  border: 1px solid rgba(0, 215, 255, 0.28);
+  border-radius: 0;
+  padding: 7px 10px;
+  background: rgba(0, 18, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 10px rgba(0, 215, 255, 0.04);
+}
+
+.filter-option:hover,
+.filter-option.active {
+  border-color: rgba(0, 215, 255, 0.82);
+  background: rgba(0, 215, 255, 0.13);
+  color: var(--cyan-bright);
+  box-shadow: 0 0 12px rgba(0, 215, 255, 0.18), inset 0 0 14px rgba(0, 215, 255, 0.08);
+}
+
+.filter-option.wide {
+  margin-bottom: 4px;
 }
 
 .categories-panel {
@@ -1212,6 +1325,7 @@ kbd:first-child {
 
   .stats-panel,
   .categories-panel,
+  .filter-panel,
   .selected-panel,
   .weather-panel,
   .help-panel,
@@ -1232,6 +1346,12 @@ kbd:first-child {
     right: auto;
     bottom: 196px;
     width: calc(100% - 32px);
+  }
+
+  .filter-panel {
+    top: 96px;
+    right: 16px;
+    width: min(320px, calc(100% - 32px));
   }
 
   .category-list {
@@ -1273,6 +1393,12 @@ kbd:first-child {
 
   .categories-panel {
     display: none;
+  }
+
+  .filter-panel {
+    left: 14px;
+    right: 14px;
+    width: auto;
   }
 
   .selected-panel {
