@@ -10,6 +10,10 @@ const selectedPanel = document.querySelector(".selected-panel");
 const selectedPlace = document.getElementById("selectedPlace");
 const selectedDescription = document.getElementById("selectedDescription");
 const selectedBadge = document.getElementById("selectedBadge");
+const selectedMedia = document.getElementById("selectedMedia");
+const selectedPrev = document.getElementById("selectedPrev");
+const selectedNext = document.getElementById("selectedNext");
+const selectedImageCount = document.getElementById("selectedImageCount");
 const searchToggle = document.getElementById("searchToggle");
 const searchPanel = document.getElementById("searchPanel");
 const searchInput = document.getElementById("searchInput");
@@ -233,8 +237,9 @@ let mvpMatrix = identity();
 let nodeMatrix = identity();
 let animationId = 0;
 let activeView = "3d";
-let selectedCategory = "camp";
+let selectedCategory = null;
 let selectedLocation = null;
+let selectedImageIndex = 0;
 let enabledCategories = new Set(categories.map((category) => category.id));
 let activeCityFilter = null;
 let mapIsLoading = true;
@@ -507,11 +512,53 @@ function renderFilterPanel() {
 function renderSelected() {
   if (!selectedLocation) return;
   const category = categoryFor(selectedLocation.category);
+  const media = mediaForLocation(selectedLocation);
+  selectedImageIndex = clamp(selectedImageIndex, 0, media.length - 1);
   selectedTitle.textContent = selectedLocation.name;
   selectedPlace.textContent = selectedLocation.place;
-  selectedDescription.textContent = selectedLocation.description;
+  selectedDescription.textContent = `${selectedLocation.description} ${selectedLocation.source ? `Reference: ${selectedLocation.source}.` : ""}`;
   selectedBadge.style.setProperty("--accent", category.color);
   selectedBadge.innerHTML = svg(category.icon);
+  selectedMedia.style.backgroundImage = `linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.3)), url("${media[selectedImageIndex]}")`;
+  selectedImageCount.textContent = `${selectedImageIndex + 1} / ${media.length}`;
+}
+
+function mediaForLocation(location) {
+  const pools = {
+    camp: [
+      "https://images.unsplash.com/photo-1473580044384-7ba9967e16a0?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1510312305653-8ed496efae75?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=720&q=80"
+    ],
+    hiking: [
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=720&q=80"
+    ],
+    park: [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=720&q=80"
+    ],
+    bbq: [
+      "https://images.unsplash.com/photo-1529193591184-b1d58069ecdd?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=720&q=80"
+    ],
+    other: [
+      "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=720&q=80",
+      "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=720&q=80"
+    ]
+  };
+  return pools[location.category] || pools.other;
+}
+
+function changeSelectedImage(direction) {
+  if (!selectedLocation) return;
+  const media = mediaForLocation(selectedLocation);
+  selectedImageIndex = (selectedImageIndex + direction + media.length) % media.length;
+  renderSelected();
 }
 
 function renderMarkers() {
@@ -550,6 +597,7 @@ function selectLocation(locationId) {
   const location = locations.find((item) => item.id === locationId);
   if (!location) return;
   selectedLocation = location;
+  selectedImageIndex = 0;
   selectedCategory = location.category;
   if (!enabledCategories.has(location.category)) enabledCategories.add(location.category);
   if (activeCityFilter && cityForLocation(location) !== activeCityFilter) activeCityFilter = null;
@@ -792,6 +840,9 @@ function initUI() {
     selectLocation(marker.dataset.location);
   });
 
+  selectedPrev.addEventListener("click", () => changeSelectedImage(-1));
+  selectedNext.addEventListener("click", () => changeSelectedImage(1));
+
   document.querySelectorAll(".view-button").forEach((button) => {
     button.addEventListener("click", () => {
       const nextView = button.dataset.view;
@@ -862,7 +913,7 @@ function initUI() {
     if (clearButton) {
       enabledCategories = new Set(categories.map((category) => category.id));
       activeCityFilter = null;
-      selectedCategory = "camp";
+      selectedCategory = null;
       renderCategories();
       renderFilterPanel();
       renderMarkers();
@@ -874,7 +925,7 @@ function initUI() {
     if (categoryButton) {
       const categoryId = categoryButton.dataset.filterCategory;
       enabledCategories = categoryId === "all" ? new Set(categories.map((category) => category.id)) : new Set([categoryId]);
-      selectedCategory = categoryId === "all" ? "camp" : categoryId;
+      selectedCategory = categoryId === "all" ? null : categoryId;
       if (selectedLocation && !enabledCategories.has(selectedLocation.category)) closeSelectedPanel(true);
       renderCategories();
       renderFilterPanel();
@@ -896,13 +947,26 @@ function initUI() {
   document.addEventListener("pointerdown", (event) => {
     const clickedSearch = searchPanel.contains(event.target) || searchToggle.contains(event.target);
     const clickedFilter = filterPanel.contains(event.target) || focusButton.contains(event.target);
+    const clickedCategoryPanel = categoryList.contains(event.target) || viewAllCategories.contains(event.target);
     if (!clickedSearch) searchPanel.classList.add("hidden");
     if (!clickedFilter) filterPanel.classList.add("hidden");
+    if (!clickedCategoryPanel && selectedCategory) {
+      selectedCategory = null;
+      renderCategories();
+      renderFilterPanel();
+    }
+    const clickedLocation = event.target.closest("[data-location]");
+    const clickedSelectedPanel = selectedPanel.contains(event.target);
+    const clickedDetails = detailsButton.contains(event.target);
+    if (selectedLocation && !clickedLocation && !clickedSelectedPanel && !clickedDetails) {
+      closeSelectedPanel(true);
+    }
   });
 
   detailsButton.addEventListener("click", () => {
     if (!selectedLocation) return;
-    showToast(`${selectedLocation.name}: full detail page placeholder for the MVP`);
+    const query = encodeURIComponent(`${selectedLocation.name} ${selectedLocation.place}`);
+    window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener,noreferrer");
   });
 }
 
@@ -1016,11 +1080,13 @@ function initWebGL() {
       vec4 base = uUseTexture == 1 ? tex : uBaseColor;
       vec3 color = base.rgb * shade + vec3(0.04, 0.035, 0.025);
       if (uViewMode == 1) {
-        color = mix(color, vec3(0.02, 0.14, 0.21), 0.22) + vec3(0.0, 0.035, 0.05);
+        color = mix(color, vec3(0.74, 0.68, 0.58), 0.06);
       } else if (uViewMode == 2) {
         color = mix(color, vec3(0.62, 0.5, 0.32), 0.12);
       }
-      color += vec3(0.0, 0.55, 0.74) * smoothstep(0.35, 0.72, vHeight) * 0.18;
+      if (uViewMode == 0) {
+        color += vec3(0.0, 0.55, 0.74) * smoothstep(0.35, 0.72, vHeight) * 0.18;
+      }
       gl_FragColor = vec4(min(color, vec3(1.0)), base.a);
     }
   `);
