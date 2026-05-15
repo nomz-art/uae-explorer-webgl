@@ -56,7 +56,7 @@ input {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
 }
 
 .app::before {
@@ -88,7 +88,7 @@ input {
   display: none;
   cursor: grab;
   position: relative;
-  z-index: 0;
+  z-index: 2;
 }
 
 #scene.active {
@@ -120,7 +120,7 @@ input {
 .map-loading-overlay {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 5;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -179,7 +179,7 @@ input {
 
 .panel {
   position: absolute;
-  z-index: 3;
+  z-index: 4;
   border: 1px solid transparent;
   border-radius: 0;
   background:
@@ -641,8 +641,8 @@ h2 {
 .panel-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
@@ -652,13 +652,15 @@ h2 {
 
 .text-action {
   flex: 0 0 auto;
-  border: 1px solid rgba(0, 215, 255, 0.38);
+  border: 0;
   border-radius: 0;
-  padding: 3px 5px;
-  background: rgba(0, 215, 255, 0.08);
+  min-width: 58px;
+  min-height: 30px;
+  padding: 6px 8px;
+  background: transparent;
   color: var(--cyan-bright);
   cursor: pointer;
-  font-size: 0.58rem;
+  font-size: 0.62rem;
   font-weight: 900;
   line-height: 1;
   text-transform: uppercase;
@@ -666,8 +668,8 @@ h2 {
 }
 
 .text-action:hover {
-  border-color: var(--cyan);
-  background: rgba(0, 215, 255, 0.16);
+  color: white;
+  text-shadow: 0 0 12px var(--cyan);
 }
 
 .category-list {
@@ -825,33 +827,73 @@ h2 {
   overflow: hidden;
   border: 1px solid rgba(0, 215, 255, 0.34);
   border-radius: 0;
-  background:
-    linear-gradient(155deg, rgba(7, 22, 32, 0.1), rgba(255, 154, 72, 0.18)),
-    radial-gradient(circle at 82% 28%, rgba(255, 194, 86, 0.92), transparent 12%),
-    linear-gradient(160deg, transparent 0 35%, #1e2630 35% 52%, transparent 52%),
-    linear-gradient(22deg, #17211e 0 38%, #9a6b35 39% 40%, #10201d 41% 100%);
+  background: rgba(0, 12, 22, 0.72);
 }
 
-.selected-image::before,
+.selected-media {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  filter: saturate(1.08) contrast(1.04);
+  transition: background-image 180ms ease;
+}
+
 .selected-image::after {
   content: "";
   position: absolute;
-  left: -6%;
-  right: -6%;
-  bottom: 0;
-  height: 62%;
-  background: linear-gradient(145deg, transparent 0 15%, rgba(111, 82, 50, 0.88) 16% 28%, transparent 29% 42%, rgba(42, 58, 56, 0.94) 43% 100%);
-  clip-path: polygon(0 100%, 16% 38%, 30% 72%, 47% 18%, 65% 64%, 78% 30%, 100% 100%);
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 215, 255, 0.1), transparent 28%, transparent 72%, rgba(0, 215, 255, 0.08)),
+    linear-gradient(180deg, transparent 52%, rgba(0, 0, 0, 0.46));
 }
 
-.selected-image::after {
-  opacity: 0.68;
-  transform: translateY(18px) scaleX(1.08);
+.media-nav {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 30px;
+  height: 38px;
+  transform: translateY(-50%);
+  border: 1px solid rgba(0, 215, 255, 0.45);
+  background: rgba(0, 12, 22, 0.72);
+  color: var(--cyan-bright);
+  cursor: pointer;
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.media-nav:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 215, 255, 0.18);
+}
+
+.media-prev {
+  left: 8px;
+}
+
+.media-next {
+  right: 8px;
+}
+
+.media-count {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 3;
+  padding: 3px 7px;
+  border: 1px solid rgba(0, 215, 255, 0.32);
+  background: rgba(0, 8, 16, 0.72);
+  color: var(--cyan-bright);
+  font-size: 0.68rem;
+  font-weight: 900;
 }
 
 .selected-badge {
   position: absolute;
-  z-index: 2;
+  z-index: 3;
   left: 16px;
   top: 16px;
   width: 46px;
@@ -1230,7 +1272,7 @@ kbd:first-child {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
 }
 
 .marker {

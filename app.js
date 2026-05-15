@@ -443,8 +443,18 @@ function visibleLocations() {
 function setMapLoading(loading) {
   mapIsLoading = loading;
   document.body.classList.toggle("map-loading", loading);
-  mapLoadingOverlay.classList.toggle("hidden", !loading);
+  if (mapLoadingOverlay) mapLoadingOverlay.classList.toggle("hidden", !loading);
   markerLayer.classList.toggle("hidden", loading);
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 90000) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 function renderStats() {
@@ -1105,11 +1115,27 @@ function initWebGL() {
 
   window.addEventListener("resize", resize);
   resize();
-  showToast("Loading local UAE GLB model...");
-  loadGlbModel("uae-map.glb").then((loaded) => {
-    if (!loaded) loadGeoBoundary("uae-boundary-simplified.json");
-  });
+  loadMapAssets();
   return true;
+}
+
+async function loadMapAssets() {
+  setMapLoading(true);
+  showToast("Loading local UAE GLB model...");
+  try {
+    const loaded = await loadGlbModel("uae-map.glb");
+    if (loaded) return;
+    const boundaryLoaded = await loadGeoBoundary("uae-boundary-simplified.json");
+    if (boundaryLoaded) return;
+  } catch (error) {
+    console.warn("Map loading failed", error);
+  }
+
+  glbModel = null;
+  geoBoundary = null;
+  renderMarkers();
+  setMapLoading(false);
+  showToast("Using simplified local terrain.");
 }
 
 function uploadTerrainMesh() {
@@ -1125,7 +1151,7 @@ function uploadTerrainMesh() {
 
 async function loadGeoBoundary(url) {
   try {
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url, {}, 15000);
     if (!response.ok) throw new Error(`Could not load ${url}`);
     geoBoundary = await response.json();
     mapBounds = {
@@ -1141,10 +1167,11 @@ async function loadGeoBoundary(url) {
     renderMarkers();
     setMapLoading(false);
     showToast("Accurate UAE boundary map loaded");
+    return true;
   } catch (error) {
     console.warn(error);
-    setMapLoading(false);
-    showToast("Using fallback terrain. Run the local server to load accurate map data.");
+    showToast("Could not load boundary fallback.");
+    return false;
   }
 }
 
@@ -1174,7 +1201,7 @@ function createSolidTexture(rgba) {
 
 async function loadGlbModel(url) {
   try {
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url, {}, 90000);
     if (!response.ok) throw new Error(`Could not load ${url}`);
     const arrayBuffer = await response.arrayBuffer();
     const parsed = parseGlb(arrayBuffer);
@@ -1191,7 +1218,7 @@ async function loadGlbModel(url) {
   } catch (error) {
     console.warn(error);
     glbModel = null;
-    showToast("Using fallback terrain. Run the local server to load the GLB model.");
+    showToast("Trying fallback UAE boundary map...");
     return false;
   }
 }
@@ -1886,8 +1913,14 @@ function scale(x, y, z) {
 }
 
 initUI();
-if (initWebGL()) {
-  canvas.classList.add("active");
-  initInput();
-  draw();
+try {
+  if (initWebGL()) {
+    canvas.classList.add("active");
+    initInput();
+    draw();
+  }
+} catch (error) {
+  console.error(error);
+  setMapLoading(false);
+  showToast("Map renderer could not start.");
 }
