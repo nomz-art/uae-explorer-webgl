@@ -960,8 +960,9 @@ function initUI() {
     const clickedCategoryPanel = categoryList.contains(event.target) || viewAllCategories.contains(event.target);
     if (!clickedSearch) searchPanel.classList.add("hidden");
     if (!clickedFilter) filterPanel.classList.add("hidden");
-    if (!clickedCategoryPanel && selectedCategory) {
+    if (!clickedCategoryPanel && (selectedCategory || expandedCategory)) {
       selectedCategory = null;
+      expandedCategory = null;
       renderCategories();
       renderFilterPanel();
     }
