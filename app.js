@@ -1114,9 +1114,20 @@ function initWebGL() {
   uploadTerrainMesh();
 
   window.addEventListener("resize", resize);
-  resize();
+  if ("ResizeObserver" in window) {
+    const canvasObserver = new ResizeObserver(() => resize());
+    canvasObserver.observe(canvas);
+  }
+  forceCanvasResize();
   loadMapAssets();
   return true;
+}
+
+function forceCanvasResize() {
+  resize();
+  requestAnimationFrame(resize);
+  window.setTimeout(resize, 80);
+  window.setTimeout(resize, 240);
 }
 
 async function loadMapAssets() {
@@ -1135,6 +1146,7 @@ async function loadMapAssets() {
   geoBoundary = null;
   renderMarkers();
   setMapLoading(false);
+  forceCanvasResize();
   showToast("Using simplified local terrain.");
 }
 
@@ -1166,6 +1178,7 @@ async function loadGeoBoundary(url) {
     uploadTerrainMesh();
     renderMarkers();
     setMapLoading(false);
+    forceCanvasResize();
     showToast("Accurate UAE boundary map loaded");
     return true;
   } catch (error) {
@@ -1213,6 +1226,7 @@ async function loadGlbModel(url) {
     renderMarkers();
     updateMarkerPositions();
     setMapLoading(false);
+    forceCanvasResize();
     showToast("High-detail UAE GLB model loaded");
     return true;
   } catch (error) {
@@ -1641,9 +1655,13 @@ function refreshTerrainForView() {
 }
 
 function resize() {
+  if (!gl) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const width = Math.floor(canvas.clientWidth * dpr);
-  const height = Math.floor(canvas.clientHeight * dpr);
+  const rect = canvas.getBoundingClientRect();
+  const cssWidth = rect.width || canvas.clientWidth || window.innerWidth;
+  const cssHeight = rect.height || canvas.clientHeight || window.innerHeight;
+  const width = Math.max(1, Math.floor(cssWidth * dpr));
+  const height = Math.max(1, Math.floor(cssHeight * dpr));
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
@@ -1914,8 +1932,8 @@ function scale(x, y, z) {
 
 initUI();
 try {
+  canvas.classList.add("active");
   if (initWebGL()) {
-    canvas.classList.add("active");
     initInput();
     draw();
   }
